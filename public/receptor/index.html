@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Receptor - WebRTC</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <nav><a href="/emisor">Ir al emisor →</a></nav>
+  <h1>Receptor (ver transmisión)</h1>
+  <video id="remoteVideo" autoplay playsinline></video>
+  <div class="controls">
+    <button id="connectBtn">Conectar</button>
+    <button id="disconnectBtn" disabled>Desconectar</button>
+  </div>
+  <div id="status">Presiona "Conectar" para ver la transmisión del emisor.</div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="/firebase-config.js"></script>
+  <script src="/receptor/receptor.js"></script>
+</body>
+</html>

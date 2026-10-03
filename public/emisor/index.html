@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Emisor - WebRTC</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <nav><a href="/receptor">Ir al receptor →</a></nav>
+  <h1>Emisor (cámara y micrófono)</h1>
+  <video id="localVideo" autoplay muted playsinline></video>
+  <div class="controls">
+    <button id="startBtn">Iniciar transmisión</button>
+    <button id="stopBtn" disabled>Detener</button>
+  </div>
+  <div id="status">Presiona "Iniciar transmisión" para comenzar.</div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="/firebase-config.js"></script>
+  <script src="/emisor/emisor.js"></script>
+</body>
+</html>

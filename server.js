@@ -1,0 +1,21 @@
+const express = require('express');
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/emisor', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'emisor', 'index.html'));
+});
+
+app.get('/receptor', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'receptor', 'index.html'));
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`  Emisor:   http://localhost:${PORT}/emisor`);
+  console.log(`  Receptor: http://localhost:${PORT}/receptor`);
+});
