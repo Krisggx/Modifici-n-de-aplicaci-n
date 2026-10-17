@@ -2,12 +2,32 @@ const localVideo = document.getElementById('localVideo');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const statusEl = document.getElementById('status');
+const screenBtn = document.getElementById('screenBtn');
+const screenBtnLabel = document.getElementById('screenBtnLabel');
+const sourceLabel = document.getElementById('sourceLabel');
+const sourceTag = document.getElementById('sourceTag');
 
 const MAX_RECEIVERS = 4;
 
 let localStream = null;
 let roomRef = null;
 let viewersRef = null;
+
+// Pistas de video disponibles. Solo una se envía a la vez.
+let cameraTrack = null;
+let screenTrack = null;
+let currentSource = 'camera';
+let switchingSource = false;
+
+const SCREEN_SUPPORTED = Boolean(
+  navigator.mediaDevices &&
+  navigator.mediaDevices.getDisplayMedia
+);
+
+const SOURCE_NAMES = {
+  camera: 'Cámara web',
+  screen: 'Pantalla compartida'
+};
 
 // Cada receptor tendrá su propia RTCPeerConnection.
 const peerConnections = new Map();
@@ -18,16 +38,184 @@ function setStatus(text) {
 
 function updateReceiverCount() {
   const numberOfReceivers = peerConnections.size;
+  const sourceText = currentSource === 'screen'
+    ? 'tu pantalla'
+    : 'tu cámara';
 
   if (numberOfReceivers === 0) {
-    setStatus('Emisor activo. Esperando receptores...');
+    setStatus(
+      `Emisor activo con ${sourceText}. Esperando receptores...`
+    );
     return;
   }
 
   setStatus(
-    `Transmitiendo a ${numberOfReceivers} de ` +
+    `Transmitiendo ${sourceText} a ${numberOfReceivers} de ` +
     `${MAX_RECEIVERS} receptores.`
   );
+}
+
+function updateSourceControls() {
+  const broadcasting = Boolean(localStream && roomRef);
+  const sharing = currentSource === 'screen';
+
+  screenBtn.disabled =
+    !SCREEN_SUPPORTED ||
+    !broadcasting ||
+    switchingSource;
+
+  screenBtn.classList.toggle('is-sharing', sharing);
+  screenBtn.setAttribute('aria-pressed', String(sharing));
+
+  screenBtnLabel.textContent = switchingSource
+    ? 'Cambiando fuente...'
+    : sharing
+      ? 'Dejar de compartir pantalla'
+      : 'Compartir pantalla';
+
+  sourceLabel.textContent = SCREEN_SUPPORTED
+    ? SOURCE_NAMES[currentSource]
+    : 'Cámara web (este navegador no permite compartir pantalla)';
+
+  sourceTag.hidden = !broadcasting;
+  sourceTag.textContent = sharing ? 'PANTALLA' : 'CÁMARA';
+  sourceTag.classList.toggle('is-screen', sharing);
+}
+
+// Informa a los receptores qué fuente se está transmitiendo.
+function publishSource() {
+  if (!roomRef) return;
+
+  roomRef.child('source').set(currentSource).catch((error) => {
+    console.error('Error publicando la fuente de video:', error);
+  });
+}
+
+// Cambia la pista de video sin renegociar ni cortar la conexión.
+async function useVideoTrack(newTrack) {
+  localStream.getVideoTracks().forEach((track) => {
+    localStream.removeTrack(track);
+  });
+
+  localStream.addTrack(newTrack);
+
+  const replacements = [];
+
+  for (const { pc } of peerConnections.values()) {
+    if (pc.signalingState === 'closed') continue;
+
+    const transceiver = pc.getTransceivers().find(
+      (item) => item.receiver.track.kind === 'video'
+    );
+
+    if (transceiver) {
+      replacements.push(
+        transceiver.sender.replaceTrack(newTrack)
+      );
+    }
+  }
+
+  await Promise.all(replacements);
+
+  // Nuevo objeto para que la vista previa siempre se actualice.
+  localVideo.srcObject = new MediaStream(localStream.getTracks());
+}
+
+async function startScreenShare() {
+  if (!localStream || screenTrack || switchingSource) return;
+
+  switchingSource = true;
+  updateSourceControls();
+  setStatus('Elige la pantalla, ventana o pestaña que quieres compartir...');
+
+  try {
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 30 } },
+      audio: false
+    });
+
+    const track = displayStream.getVideoTracks()[0];
+
+    // La transmisión pudo detenerse mientras se elegía la pantalla.
+    if (!localStream) {
+      track.stop();
+      return;
+    }
+
+    track.contentHint = 'detail';
+
+    // El navegador muestra su propio botón "Dejar de compartir".
+    track.addEventListener('ended', () => {
+      if (screenTrack === track) {
+        stopScreenShare().catch(console.error);
+      }
+    });
+
+    await useVideoTrack(track);
+
+    screenTrack = track;
+    currentSource = 'screen';
+    publishSource();
+    updateReceiverCount();
+  } catch (error) {
+    console.error(error);
+
+    setStatus(
+      error.name === 'NotAllowedError'
+        ? 'Se canceló la selección de pantalla. Sigues transmitiendo tu cámara.'
+        : 'No fue posible compartir la pantalla: ' + error.message
+    );
+  } finally {
+    switchingSource = false;
+    updateSourceControls();
+  }
+}
+
+async function stopScreenShare() {
+  if (!localStream || !screenTrack || switchingSource) return;
+
+  switchingSource = true;
+  updateSourceControls();
+
+  try {
+    // Si la cámara se perdió, se solicita de nuevo.
+    if (!cameraTrack || cameraTrack.readyState !== 'live') {
+      const cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: true
+      });
+
+      cameraTrack = cameraStream.getVideoTracks()[0];
+    }
+
+    if (!localStream) return;
+
+    await useVideoTrack(cameraTrack);
+
+    screenTrack.stop();
+    screenTrack = null;
+    currentSource = 'camera';
+    publishSource();
+    updateReceiverCount();
+  } catch (error) {
+    console.error(error);
+
+    setStatus(
+      'No fue posible volver a la cámara: ' + error.message
+    );
+  } finally {
+    switchingSource = false;
+    updateSourceControls();
+  }
+}
+
+function releaseVideoSources() {
+  [cameraTrack, screenTrack].forEach((track) => {
+    if (track) track.stop();
+  });
+
+  cameraTrack = null;
+  screenTrack = null;
+  currentSource = 'camera';
 }
 
 async function createViewerConnection(viewerId) {
@@ -202,6 +390,9 @@ async function start() {
       audio: true
     });
 
+    cameraTrack = localStream.getVideoTracks()[0] || null;
+    currentSource = 'camera';
+
     localVideo.srcObject = localStream;
 
     roomRef = db.ref(ROOM_PATH);
@@ -212,6 +403,7 @@ async function start() {
     await roomRef.set({
       active: true,
       maximumReceivers: MAX_RECEIVERS,
+      source: 'camera',
       startedAt: firebase.database.ServerValue.TIMESTAMP
     });
 
@@ -234,6 +426,7 @@ async function start() {
 
     stopBtn.disabled = false;
     updateReceiverCount();
+    updateSourceControls();
   } catch (error) {
     console.error(error);
 
@@ -250,8 +443,13 @@ async function start() {
       localStream = null;
     }
 
+    releaseVideoSources();
+    roomRef = null;
+    viewersRef = null;
+
     localVideo.srcObject = null;
     startBtn.disabled = false;
+    updateSourceControls();
   }
 }
 
@@ -277,6 +475,8 @@ async function stop() {
     localStream = null;
   }
 
+  releaseVideoSources();
+
   localVideo.srcObject = null;
 
   if (roomRef) {
@@ -293,7 +493,15 @@ async function stop() {
 
   setStatus('Transmisión detenida.');
   startBtn.disabled = false;
+  updateSourceControls();
 }
 
 startBtn.addEventListener('click', start);
 stopBtn.addEventListener('click', stop);
+
+screenBtn.addEventListener('click', () => {
+  const action = screenTrack ? stopScreenShare : startScreenShare;
+  action().catch(console.error);
+});
+
+updateSourceControls();

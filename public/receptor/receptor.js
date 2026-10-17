@@ -4,8 +4,10 @@ const disconnectBtn = document.getElementById(
   'disconnectBtn'
 );
 const statusEl = document.getElementById('status');
+const sourceTag = document.getElementById('sourceTag');
 
 let pc = null;
+let sourceRef = null;
 let roomRef = null;
 let viewerRef = null;
 
@@ -19,6 +21,21 @@ let disconnecting = false;
 
 function setStatus(text) {
   statusEl.textContent = text;
+}
+
+// Muestra si el emisor comparte su cámara o su pantalla.
+function showSource(source) {
+  if (source !== 'camera' && source !== 'screen') {
+    sourceTag.hidden = true;
+    return;
+  }
+
+  sourceTag.hidden = false;
+  sourceTag.textContent = source === 'screen'
+    ? 'PANTALLA COMPARTIDA'
+    : 'CÁMARA';
+
+  sourceTag.classList.toggle('is-screen', source === 'screen');
 }
 
 async function connect() {
@@ -54,6 +71,13 @@ async function connect() {
     callerCandidatesRef = viewerRef.child(
       'callerCandidates'
     );
+
+    // El emisor puede cambiar de fuente sin cortar la conexión.
+    sourceRef = roomRef.child('source');
+
+    sourceRef.on('value', (snapshot) => {
+      showSource(snapshot.val());
+    });
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
@@ -218,6 +242,10 @@ async function disconnect(finalMessage = 'Desconectado.') {
   if (rejectedRef) rejectedRef.off();
   if (errorRef) errorRef.off();
   if (callerCandidatesRef) callerCandidatesRef.off();
+  if (sourceRef) sourceRef.off();
+
+  sourceRef = null;
+  showSource(null);
 
   offerRef = null;
   rejectedRef = null;

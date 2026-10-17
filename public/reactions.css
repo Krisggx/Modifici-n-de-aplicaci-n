@@ -1,0 +1,89 @@
+/* FUENTE DE VIDEO */
+.source-tag {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 9px; border-radius: 5px;
+  background: #0008; color: #c5c9cf;
+  font-size: 8px; letter-spacing: 1px; pointer-events: none;
+}
+.source-tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #adc5b2; }
+.source-tag.is-screen { background: var(--accent); color: #17191c; }
+.source-tag.is-screen::before { background: #17191c; }
+
+.button-screen.is-sharing { background: var(--accent); color: #17191c; }
+.button-screen.is-sharing:hover:not(:disabled) { background: #fff; }
+.source-indicator { margin: 14px 0 0; color: var(--muted); font-size: 11px; }
+.source-indicator strong { color: var(--text); font-weight: 600; }
+
+/* CAPA ANIMADA SOBRE EL VIDEO */
+.reaction-layer { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
+.floating-reaction {
+  position: absolute; left: var(--x); bottom: 16px;
+  font-size: var(--size); line-height: 1;
+  opacity: 0;
+  filter: drop-shadow(0 4px 10px #0008);
+  animation: reaction-float var(--duration) cubic-bezier(.22, .61, .36, 1) forwards;
+  will-change: transform, opacity;
+}
+.floating-reaction.is-mine { filter: drop-shadow(0 0 8px #fff6) drop-shadow(0 4px 10px #0008); }
+
+@keyframes reaction-float {
+  0%   { opacity: 0; transform: translate(-50%, 0) scale(.3); }
+  12%  { opacity: 1; transform: translate(-50%, calc(var(--rise) * -.1)) scale(1.2); }
+  45%  { opacity: 1; transform: translate(calc(-50% + var(--drift)), calc(var(--rise) * -.45)) scale(1); }
+  75%  { opacity: .8; transform: translate(calc(-50% - var(--drift) * .6), calc(var(--rise) * -.75)) scale(.95); }
+  100% { opacity: 0; transform: translate(-50%, calc(var(--rise) * -1)) scale(.85); }
+}
+
+/* BARRA DE REACCIONES */
+.reaction-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px;
+  margin-top: 12px; padding: 12px 14px;
+  border-radius: 12px; background: var(--surface);
+}
+.reaction-heading { display: flex; align-items: center; gap: 8px; }
+.reaction-total {
+  padding: 3px 6px; border-radius: 4px;
+  background: var(--raised); color: var(--text);
+  font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.reaction-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.reaction-button {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px; padding: 6px 11px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: #121416; color: var(--text); cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.reaction-button:hover:not(:disabled) { background: var(--raised); border-color: #565e69; transform: translateY(-2px); }
+.reaction-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.reaction-button:disabled { opacity: .35; }
+.reaction-emoji { font-size: 19px; line-height: 1; }
+.reaction-count { min-width: 12px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.reaction-button.is-pressed .reaction-emoji { animation: reaction-pop .35s ease-out; }
+
+@keyframes reaction-pop {
+  40% { transform: scale(1.45) rotate(-8deg); }
+  100% { transform: scale(1); }
+}
+
+.reaction-hint { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 10px; }
+
+@media (max-width: 760px) {
+  .reaction-bar { padding: 12px; }
+  .reaction-buttons { width: 100%; justify-content: space-between; }
+  .reaction-button { padding: 6px 9px; }
+  .source-tag { top: 10px; right: 10px; font-size: 7px; }
+}
+
+/* Sin movimiento: los emojis solo aparecen y se desvanecen. */
+@media (prefers-reduced-motion: reduce) {
+  .floating-reaction { animation: reaction-fade 1.6s ease-out forwards; }
+  .reaction-button.is-pressed .reaction-emoji { animation: none; }
+
+  @keyframes reaction-fade {
+    0% { opacity: 0; transform: translate(-50%, calc(var(--rise) * -.4)); }
+    20%, 70% { opacity: 1; transform: translate(-50%, calc(var(--rise) * -.4)); }
+    100% { opacity: 0; transform: translate(-50%, calc(var(--rise) * -.4)); }
+  }
+}

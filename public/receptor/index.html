@@ -14,6 +14,7 @@
 
   <link rel="stylesheet" href="/style.css?v=2">
   <link rel="stylesheet" href="/chat.css?v=1">
+  <link rel="stylesheet" href="/reactions.css?v=1">
 </head>
 
 <body>
@@ -160,6 +161,10 @@
           <div class="player" id="player">
             <span class="player-tag">
               PULSE / CANAL PRINCIPAL
+            </span>
+
+            <span class="source-tag" id="sourceTag" hidden>
+              CÁMARA
             </span>
 
             <video
@@ -425,7 +430,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script src="/firebase-config.js"></script>
-  <script src="/receptor/receptor.js"></script>
+  <script src="/receptor/receptor.js?v=2"></script>
 
   <!-- ACTUALIZACIÓN VISUAL -->
   <script>
@@ -653,5 +658,6 @@
     })();
   </script>
   <script src="/chat.js?v=1" data-role="receptor"></script>
+  <script src="/reactions.js?v=1" data-role="receptor"></script>
 </body>
 </html>
